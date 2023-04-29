@@ -64,13 +64,13 @@ class Ui_MainWindow(object):
 
         self.pushButton_color_rib = QPushButton(self.groupBox)
         self.pushButton_color_rib.setObjectName(u"pushButton_color_rib")
-        self.pushButton_color_rib.setStyleSheet(u"background-color: rgb(0, 0, 0);")
+        self.pushButton_color_rib.setStyleSheet(u"background-color: rgb(170, 0, 0);")
 
         self.gridLayout_3.addWidget(self.pushButton_color_rib, 2, 1, 1, 1)
 
         self.pushButton_color_fill = QPushButton(self.groupBox)
         self.pushButton_color_fill.setObjectName(u"pushButton_color_fill")
-        self.pushButton_color_fill.setStyleSheet(u"background-color: rgb(0, 255, 0);")
+        self.pushButton_color_fill.setStyleSheet(u"background-color: rgb(0, 170, 0);")
 
         self.gridLayout_3.addWidget(self.pushButton_color_fill, 3, 1, 1, 1)
 
@@ -251,7 +251,7 @@ class Ui_MainWindow(object):
         self.groupBox_3.setTitle(QCoreApplication.translate("MainWindow", u"\u0417\u0430\u043a\u0440\u0430\u0441\u043a\u0430", None))
         self.pushButton_fill.setText(QCoreApplication.translate("MainWindow", u"\u0417\u0430\u043a\u0440\u0430\u0441\u0438\u0442\u044c", None))
         self.radioButton_delay.setText(QCoreApplication.translate("MainWindow", u"\u0417\u0430\u0434\u0435\u0440\u0436\u043a\u0430 \u0437\u0430\u043b\u0438\u0432\u043a\u0438 (\u043c\u0441)", None))
-        self.label_7.setText(QCoreApplication.translate("MainWindow", u"\u0412\u0440\u0435\u043c\u044f \u0437\u0430\u043a\u0440\u0430\u0441\u043a\u0438 (\u043c\u0441):", None))
+        self.label_7.setText(QCoreApplication.translate("MainWindow", u"\u0412\u0440\u0435\u043c\u044f \u0437\u0430\u043a\u0440\u0430\u0441\u043a\u0438 (\u0441\u0435\u043a):", None))
         self.label_fill_time.setText("")
         self.menu.setTitle(QCoreApplication.translate("MainWindow", u"\u0418\u043d\u0444\u043e", None))
     # retranslateUi

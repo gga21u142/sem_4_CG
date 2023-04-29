@@ -2,6 +2,7 @@
 import sys
 import time
 import copy
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QGraphicsScene, QColormap, QColorDialog, QLabel
 from PySide6 import QtCore, QtGui
 from PySide6.QtCore import Qt
@@ -24,8 +25,8 @@ class MainWindow(QMainWindow):
 
         self.canvas_init()
         self.color_bg = (255, 255, 255, 255)
-        self.color_rib = (0, 0, 0, 255)
-        self.color_fill =  (0, 255, 0, 255)
+        self.color_rib = (170, 0, 0, 255)
+        self.color_fill =  (0, 170, 0, 255)
         self.ui.graphicsView.wheelEvent = self.wheelEvent
 
         self.points = Points()
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
 
         self.ui.pushButton_autoconnect.clicked.connect(self.rib_autoconnect)
         self.ui.pushButton_dot_add.clicked.connect(self.point_add_button)
+        self.ui.pushButton_fill.clicked.connect(self.fill_figure)
 
     # Служебные функции
 
@@ -75,7 +77,7 @@ class MainWindow(QMainWindow):
     def info_task(self):
         info_task = QMessageBox()
         info_task.setWindowTitle("Условие задачи")
-        info_task.setText("???")
+        info_task.setText("Реализация и исследование алгоритма со списком ребер и флагом для растрового заполнения области. Реализвать ввод точек нажатием кнопки мыши, через поле. Программа должна предусматривать отрисовку с задержкой для наглядной демонстрации алгоритма. Также после выполнения заливки необходимо указать затраченное кол-во времени.\nДополнительные функции:\n1) Ведение жернала действий для их отмены\n2) Возможность двигать\масштабировать канвас\n3) Изменение цвета заливки, ребер и фона")
         info_task.setDefaultButton(QMessageBox.Ok)
         info_task.setIcon(QMessageBox.Information)
 
@@ -109,19 +111,17 @@ class MainWindow(QMainWindow):
 
 
     def canvas_init(self):
-        self.canvas_bg_color = (255, 255, 255, 255)
-        self.canvas_line_color = (0, 0, 0, 255)
         self.scale = 1
 
         self.scene = QGraphicsScene(self)
         self.ui.graphicsView.setScene(self.scene)
 
-        self.pixmap = QPixmap(5000,5000)
+        self.pixmap = QPixmap(2500,2500)
         self.pixmap.fill(Qt.transparent)
 
         self.scene.addPixmap(self.pixmap)
 
-        self.canvas_size = (5000, 5000)
+        self.canvas_size = (2500, 2500)
         self.view_size = (self.ui.graphicsView.width(), self.ui.graphicsView.height())
         self.canvas_center = (self.canvas_size[0] // 2, self.canvas_size[1] // 2)
 
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
         pixmap_copy = self.pixmap.copy()
         self.action_log.append([pixmap_copy.copy(), copy.deepcopy(self.points)])
         if len(self.action_log) > self.log_size:
-            self.state_stack.pop(0)
+            self.action_log.pop(0)
 
 
     def log_undo(self):
@@ -194,26 +194,29 @@ class MainWindow(QMainWindow):
     def canvas_clean(self):
         self.scale = 1
 
-        self.canvas_size = (5000, 5000)
+        self.canvas_size = (2500, 2500)
         self.view_size = (self.ui.graphicsView.width(), self.ui.graphicsView.height())
         self.canvas_center = (self.canvas_size[0] // 2, self.canvas_size[1] // 2)
 
         self.scene.clear()
 
-        self.pixmap = QPixmap(5000, 5000)
+        self.pixmap = QPixmap(2500, 2500)
         self.pixmap.fill(Qt.transparent)
 
         self.scene.addPixmap(self.pixmap)
         self.color_bg = (255, 255, 255, 255)
         self.ui.pushButton_color_bg.setStyleSheet('background-color: rgba(255, 255, 255, 255)')
+        brush = QBrush(QColor(self.color_bg[0], self.color_bg[1], self.color_bg[2], self.color_bg[3]))
+        self.ui.graphicsView.setBackgroundBrush(brush)
 
         self.ui.graphicsView.resetTransform()
         self.canvas_scrollbar_reset()
         self.log_update()
 
     def update_scene(self):
+        self.scene.clear()
         self.scene.addPixmap(self.pixmap)
-        self.ui.graphicsView.show()
+        self.scene.update()
 
     def color_bg_change(self):
         color = QColorDialog.getColor()
@@ -251,26 +254,22 @@ class MainWindow(QMainWindow):
 
     # Функции отрисовки
 
-    def draw_point(self, point):
+    def draw_point(self, point, color, log = True):
         painter = QPainter(self.pixmap)
-        painter.setPen(QColor(QColor(self.color_rib[0], self.color_rib[1], self.color_rib[2], self.color_rib[3])))
+        painter.setPen(QColor(color[0], color[1], color[2], color[3]))
         painter.drawPoint(point[0] + self.canvas_center[0], -point[1] + self.canvas_center[1])
         painter.end()
-        self.log_update()
+        if log:
+            self.log_update()
 
 
-    def draw_line(self, point_b, point_e):
+    def draw_line(self, point_b, point_e, log = True):
         painter = QPainter(self.pixmap)
         painter.setPen(QColor(QColor(self.color_rib[0], self.color_rib[1], self.color_rib[2], self.color_rib[3])))
         painter.drawLine(point_b[0] + self.canvas_center[0], -point_b[1] + self.canvas_center[1], point_e[0] + self.canvas_center[0], -point_e[1] + self.canvas_center[1])
         painter.end()
-        self.log_update()
-
-
-    def points_draw(self, points):
-        for point in points:
-            self.draw_point(point)
-
+        if log:
+            self.log_update()
 
     def LMB_event(self, event):
         if event.button() == Qt.LeftButton:
@@ -289,7 +288,7 @@ class MainWindow(QMainWindow):
                     self.draw_line(self.points.points[-2], click_point)
                     self.update_scene()
                 else:
-                    self.draw_point(click_point)
+                    self.draw_point(click_point, self.color_rib)
                     self.update_scene()
                     self.table_add_point(click_point)
             print(self.points.points)
@@ -310,7 +309,7 @@ class MainWindow(QMainWindow):
                 self.draw_line(self.points.points[-2], click_point)
                 self.update_scene()
             else:
-                self.draw_point(click_point)
+                self.draw_point(click_point, self.color_rib)
                 self.update_scene()
                 self.table_add_point(click_point)
         print(self.points.points)
@@ -319,6 +318,7 @@ class MainWindow(QMainWindow):
     def rib_autoconnect(self):
         if (self.points.points_conect() == 0):
             self.table_add_point(('-----', '-----'))
+            print(self.points.figures[-1])
             self.draw_line(self.points.figures[-1][-2], self.points.figures[-1][-1])
             self.update_scene()
 
@@ -326,3 +326,115 @@ class MainWindow(QMainWindow):
         else:
             self.show_warning("Невозможно замкнуть фигуру. Вершин должно быть больше 2-х!")
 
+
+    # Функции заливки
+
+
+
+
+    def lines_intersection_calc(self, a1, b1, c1, a2, b2, c2):
+        opr = a1*b2 - a2*b1
+        opr1 = (-c1)*b2 - b1*(-c2)
+        opr2 = a1*(-c2) - (-c1)*a2
+
+        x = opr1 / opr
+        y = opr2 / opr
+
+        return round(x), round(y)
+
+
+    def line_coefs_calc(self, point_a, point_b):
+        a = point_a[1] - point_b[1]
+        b = point_b[0] - point_a[0]
+        c = point_a[0]*point_b[1] - point_b[0]*point_a[1]
+
+        return a, b, c
+
+
+    def figures_find_fill_borders(self):
+        for figure in self.points.figures:
+            for i in range(len(figure) - 1):
+                y_max = max(figure[i][1], figure[i + 1][1])
+                y_min = min(figure[i][1], figure[i + 1][1])
+                x = figure[i][0] if figure[i][1] == y_min else figure[i + 1][0]
+                a_rib, b_rib, c_rib = self.line_coefs_calc(figure[i], figure[i + 1])
+
+                for y in range(y_min, y_max):
+                    a_cur_line, b_cur_line, c_cur_line = self.line_coefs_calc((x, y), (x + 1, y))
+
+                    x_intersec, y_intersec = self.lines_intersection_calc(a_rib, b_rib, c_rib, a_cur_line, b_cur_line, c_cur_line)
+
+                    pixel_color = self.pixmap.toImage().pixelColor(x_intersec + self.canvas_center[0], -y + self.canvas_center[1]).getRgb()
+
+                    if (pixel_color != self.color_border):
+                        self.draw_point((x_intersec, y), self.color_border, False)
+                    else:
+                        self.draw_point((x_intersec + 1, y), self.color_border, False)
+
+        self.update_scene()
+
+
+    def find_rectangle(self):
+        x_min = self.points.figures[0][0][0]
+        x_max = self.points.figures[0][0][0]
+        y_min = self.points.figures[0][0][1]
+        y_max = self.points.figures[0][0][1]
+
+        for figure in self.points.figures:
+            for point in figure:
+                if point[0] > x_max:
+                    x_max = point[0]
+                if point[0] < x_min:
+                    x_min = point[0]
+                if point[1] > y_max:
+                    y_max = point[1]
+                if point[1] < y_min:
+                    y_min = point[1]
+
+        return x_min, x_max, y_min, y_max
+
+
+    def fill_figure(self):
+        if (len(self.points.points) > 0):
+            self.show_warning("Текущая фигура не замкнута! Невозможно выполнить заливку.")
+            return
+
+        if (len(self.points.figures) == 0):
+            self.show_warning("Не задана ни одна фигура! Невозможно выполнить заливку.")
+            return
+
+        start = time.time()
+        delay = 0
+        if self.ui.radioButton_delay.isChecked():
+            delay = self.ui.spinBox_delay.value()
+
+        self.color_border = (255 - self.color_rib[0], 255 - self.color_rib[1], 255 - self.color_rib[2], 255)
+        self.figures_find_fill_borders()
+        x_min, x_max, y_min, y_max = self.find_rectangle()
+
+        for y in range(y_max, y_min - 1, -1):
+            flag = False
+            for x in range(x_min, x_max + 2):
+                pixel_color = self.pixmap.toImage().pixelColor(x + self.canvas_center[0], -y + self.canvas_center[1]).getRgb()
+
+                if (pixel_color == self.color_border):
+                    flag = not flag
+                if flag:
+                    self.draw_point((x, y), self.color_fill, False)
+                else:
+                    self.draw_point((x, y), self.color_bg, False)
+
+            if (delay != 0):
+                QTest.qWait(delay * 0.001)
+                self.update_scene()
+
+        for figure in self.points.figures:
+            for i in range(len(figure) - 1):
+                self.draw_line(figure[i], figure[i + 1], False)
+
+        end = time.time()
+        work_time = end - start
+        self.ui.label_fill_time.setText(str(work_time)[:7])
+
+        self.update_scene()
+        self.log_update()

@@ -67,7 +67,7 @@
        <item row="2" column="1">
         <widget class="QPushButton" name="pushButton_color_rib">
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(0, 0, 0);</string>
+          <string notr="true">background-color: rgb(170, 0, 0);</string>
          </property>
          <property name="text">
           <string/>
@@ -77,7 +77,7 @@
        <item row="3" column="1">
         <widget class="QPushButton" name="pushButton_color_fill">
          <property name="styleSheet">
-          <string notr="true">background-color: rgb(0, 255, 0);</string>
+          <string notr="true">background-color: rgb(0, 170, 0);</string>
          </property>
          <property name="text">
           <string/>
@@ -272,7 +272,7 @@
        <item row="1" column="0">
         <widget class="QLabel" name="label_7">
          <property name="text">
-          <string>Время закраски (мс):</string>
+          <string>Время закраски (сек):</string>
          </property>
         </widget>
        </item>
