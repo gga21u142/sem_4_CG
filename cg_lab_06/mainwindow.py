@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
 
         self.ui.pushButton_autoconnect.clicked.connect(self.rib_autoconnect)
         self.ui.pushButton_dot_add.clicked.connect(self.point_add_button)
-        self.ui.pushButton_fill.clicked.connect(self.fill_figure)
+        self.ui.pushButton_fill.clicked.connect(self.fill_figure_point)
 
     # Служебные функции
 
@@ -193,6 +193,23 @@ class MainWindow(QMainWindow):
         else:
             self.ui.tableWidget_ribs.setCellWidget(0, 0, QLabel(str(point[0])))
             self.ui.tableWidget_ribs.setCellWidget(0, 1, QLabel(str(point[1])))
+
+    def figure_inside_warning(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Закраска")
+        msg.setIcon(QMessageBox.Question)
+        msg.setText("Затравочная точка находится вне фигуры.\nЕсли у вас фигура с пересекающимися ребрами, то сообщение может быть ошибочным.\nПродолжить?")
+
+        buttonAceptar  = msg.addButton("Да", QMessageBox.YesRole)
+        buttonCancelar = msg.addButton("Нет", QMessageBox.RejectRole)
+        msg.setDefaultButton(buttonAceptar)
+        msg.exec_()
+
+        if msg.clickedButton() == buttonAceptar:
+            return True
+        elif msg.clickedButton() == buttonCancelar:
+            return False
+
     # Функции кнопок
 
     def clean_button(self):
@@ -281,6 +298,37 @@ class MainWindow(QMainWindow):
         if log:
             self.log_update()
 
+    def if_point_inside(self, point):
+        x, y = point
+
+        # Проходимся по каждой стороне фигуры
+        for figure in self.points.figures:
+            intersections = 0
+
+            for i in range(len(figure)):
+                # Получаем координаты текущей и следующей точек стороны
+                current_point = figure[i]
+                next_point = figure[(i + 1) % len(figure)]
+
+                # Проверяем, находится ли точка выше, ниже или на одном уровне со стороной
+                if (current_point[1] <= y and next_point[1] > y) or \
+                   (current_point[1] > y and next_point[1] <= y):
+
+                    # Вычисляем координату x пересечения луча и стороны
+                    intersect = (next_point[0] - current_point[0]) * (y - current_point[1]) / \
+                                (next_point[1] - current_point[1]) + current_point[0]
+
+                    # Увеличиваем количество пересечений, если точка пересекает сторону
+                    if intersect > x:
+                        intersections += 1
+
+            if intersections % 2 != 0:
+                return True
+
+        # Если количество пересечений нечетное, то точка внутри фигуры
+        return False
+
+
     def LMB_event(self, event):
         if event.button() == Qt.LeftButton:
             position = self.ui.graphicsView.mapToScene(event.pos())
@@ -303,6 +351,9 @@ class MainWindow(QMainWindow):
                         self.update_scene()
                         self.table_add_point(click_point)
             else:
+                if self.pixel_color_get(click_point) == self.color_rib:
+                    self.show_warning("Вы выбрали точку ребра, как затравочную. Пожалуйста, выберите другую затравочную точку.")
+                    return
                 self.points.fill_point = click_point
                 self.table_add_point(click_point)
                 self.log_update()
@@ -327,6 +378,9 @@ class MainWindow(QMainWindow):
                     self.update_scene()
                     self.table_add_point(click_point)
         else:
+            if self.pixel_color_get(click_point) == self.color_rib:
+                self.show_warning("Вы выбрали точку ребра, как затравочную. Пожалуйста, выберите другую затравочную точку.")
+                return
             self.points.fill_point = click_point
             self.table_add_point(click_point)
             self.log_update()
@@ -346,69 +400,11 @@ class MainWindow(QMainWindow):
 
     # Функции заливки
 
-    def lines_intersection_calc(self, a1, b1, c1, a2, b2, c2):
-        opr = a1*b2 - a2*b1
-        opr1 = (-c1)*b2 - b1*(-c2)
-        opr2 = a1*(-c2) - (-c1)*a2
-
-        x = opr1 / opr
-        y = opr2 / opr
-
-        return round(x), round(y)
+    def pixel_color_get(self, point):
+        return self.pixmap.toImage().pixelColor(point[0] + self.canvas_center[0], -point[1] + self.canvas_center[1]).getRgb()
 
 
-    def line_coefs_calc(self, point_a, point_b):
-        a = point_a[1] - point_b[1]
-        b = point_b[0] - point_a[0]
-        c = point_a[0]*point_b[1] - point_b[0]*point_a[1]
-
-        return a, b, c
-
-
-    def figures_find_fill_borders(self):
-        for figure in self.points.figures:
-            for i in range(len(figure) - 1):
-                y_max = max(figure[i][1], figure[i + 1][1])
-                y_min = min(figure[i][1], figure[i + 1][1])
-                x = figure[i][0] if figure[i][1] == y_min else figure[i + 1][0]
-                a_rib, b_rib, c_rib = self.line_coefs_calc(figure[i], figure[i + 1])
-
-                for y in range(y_min, y_max):
-                    a_cur_line, b_cur_line, c_cur_line = self.line_coefs_calc((x, y), (x + 1, y))
-
-                    x_intersec, y_intersec = self.lines_intersection_calc(a_rib, b_rib, c_rib, a_cur_line, b_cur_line, c_cur_line)
-
-                    pixel_color = self.pixmap.toImage().pixelColor(x_intersec + self.canvas_center[0], -y + self.canvas_center[1]).getRgb()
-
-                    if (pixel_color != self.color_border):
-                        self.draw_point((x_intersec, y), self.color_border, False)
-                    else:
-                        self.draw_point((x_intersec + 1, y), self.color_border, False)
-
-        self.update_scene()
-
-
-    def find_rectangle(self):
-        x_min = self.points.figures[0][0][0]
-        x_max = self.points.figures[0][0][0]
-        y_min = self.points.figures[0][0][1]
-        y_max = self.points.figures[0][0][1]
-
-        for figure in self.points.figures:
-            for point in figure:
-                if point[0] > x_max:
-                    x_max = point[0]
-                if point[0] < x_min:
-                    x_min = point[0]
-                if point[1] > y_max:
-                    y_max = point[1]
-                if point[1] < y_min:
-                    y_min = point[1]
-
-        return x_min, x_max, y_min, y_max
-
-
-    def fill_figure(self):
+    def fill_figure_point(self):
         if (len(self.points.points) > 0):
             self.show_warning("Текущая фигура не замкнута! Невозможно выполнить заливку.")
             return
@@ -417,34 +413,116 @@ class MainWindow(QMainWindow):
             self.show_warning("Не задана ни одна фигура! Невозможно выполнить заливку.")
             return
 
+        if (self.points.fill_point[0] == "not set"):
+            self.show_warning("Затравочная точка не задана (ее координаты находятся в первой строке таблицы)! Невозможно выполнить заливку.")
+            return
+
+        if (not self.if_point_inside(self.points.fill_point)):
+            if (not self.figure_inside_warning()):
+                return
+
         start = time.time()
         delay = 0
         if self.ui.radioButton_delay.isChecked():
             delay = self.ui.spinBox_delay.value()
 
-        self.color_border = (255 - self.color_rib[0], 255 - self.color_rib[1], 255 - self.color_rib[2], 255)
-        self.figures_find_fill_borders()
-        x_min, x_max, y_min, y_max = self.find_rectangle()
+        stack = list()
+        stack.append(self.points.fill_point)
 
-        for y in range(y_max, y_min - 1, -1):
-            flag = False
-            for x in range(x_min, x_max + 2):
-                pixel_color = self.pixmap.toImage().pixelColor(x + self.canvas_center[0], -y + self.canvas_center[1]).getRgb()
+        while len(stack) != 0:
+            x, y = stack.pop()
+            x_buf, y_buf = x, y
 
-                if (pixel_color == self.color_border):
-                    flag = not flag
-                if flag:
+
+
+            pixel_color = self.pixel_color_get((x, y))
+
+            while pixel_color != self.color_rib:
+                if pixel_color != self.color_fill:
                     self.draw_point((x, y), self.color_fill, False)
-                else:
-                    self.draw_point((x, y), self.color_bg, False)
+                x += 1
+                pixel_color = self.pixel_color_get((x, y))
+
+            x_right = x - 1
+
+
+
+            x = x_buf - 1
+            pixel_color = self.pixel_color_get((x, y))
+
+            while pixel_color != self.color_rib:
+                if pixel_color != self.color_fill:
+                    self.draw_point((x, y), self.color_fill, False)
+                x -= 1
+                pixel_color = self.pixel_color_get((x, y))
+
+            x_left = x + 1
+
+
+
+            x = x_left
+            y = y_buf + 1
+
+            while x <= x_right:
+                flag = False
+
+                pixel_color = self.pixel_color_get((x, y))
+                while x <= x_right and pixel_color != self.color_rib and pixel_color != self.color_fill:
+                    flag = True
+                    x += 1
+                    pixel_color = self.pixel_color_get((x, y))
+
+                if flag:
+                    if x == x_right and pixel_color != self.color_rib and pixel_color != self.color_fill:
+                        stack.append((x, y))
+                    else:
+                        stack.append((x - 1, y))
+
+                x_temp = x
+
+                while x < x_right and (pixel_color == self.color_rib or pixel_color == self.color_fill):
+                    x += 1
+                    pixel_color = self.pixel_color_get((x, y))
+
+                if x == x_temp:
+                    x += 1
+
+
+
+            x = x_left
+            y = y_buf - 1
+
+            while x <= x_right:
+                flag = False
+
+                pixel_color = self.pixel_color_get((x, y))
+                while x <= x_right and pixel_color != self.color_rib and pixel_color != self.color_fill:
+                    flag = True
+                    x += 1
+                    pixel_color = self.pixel_color_get((x, y))
+
+                if flag:
+                    if x == x_right and pixel_color != self.color_rib and pixel_color != self.color_fill:
+                        stack.append((x, y))
+                    else:
+                        stack.append((x - 1, y))
+
+                x_temp = x
+
+                while x < x_right and (pixel_color == self.color_rib or pixel_color == self.color_fill):
+                    x += 1
+                    pixel_color = self.pixel_color_get((x, y))
+
+                if x == x_temp:
+                    x += 1
+
+
+
 
             if (delay != 0):
                 QTest.qWait(delay * 0.001)
                 self.update_scene()
 
-        for figure in self.points.figures:
-            for i in range(len(figure) - 1):
-                self.draw_line(figure[i], figure[i + 1], False)
 
         end = time.time()
         work_time = end - start
