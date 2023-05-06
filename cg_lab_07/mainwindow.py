@@ -169,22 +169,6 @@ class MainWindow(QMainWindow):
             self.ui.graphicsView.show()
 
 
-    def figure_inside_warning(self):
-        msg = QMessageBox(self)
-        msg.setWindowTitle("Закраска")
-        msg.setIcon(QMessageBox.Question)
-        msg.setText("Затравочная точка находится вне фигуры.\nЕсли у вас фигура с пересекающимися ребрами, то сообщение может быть ошибочным.\nПродолжить?")
-
-        buttonAceptar  = msg.addButton("Да", QMessageBox.YesRole)
-        buttonCancelar = msg.addButton("Нет", QMessageBox.RejectRole)
-        msg.setDefaultButton(buttonAceptar)
-        msg.exec_()
-
-        if msg.clickedButton() == buttonAceptar:
-            return True
-        elif msg.clickedButton() == buttonCancelar:
-            return False
-
     # Функции кнопок
 
     def clean_button(self):
@@ -402,6 +386,9 @@ class MainWindow(QMainWindow):
 
 
     def cut_lines(self):
+        if len(self.task_cutter) == 0:
+            self.show_warning("Отсекатель не задан.")
+            return
         for line in self.task_lines:
             code_1 = self.get_point_code(line[0])
             code_2 = self.get_point_code(line[1])
