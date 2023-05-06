@@ -248,10 +248,10 @@ class Ui_MainWindow(object):
 
         self.gridLayout_6.addWidget(self.groupBox_6, 1, 0, 1, 1)
 
-        self.pushButton = QPushButton(self.groupBox_5)
-        self.pushButton.setObjectName(u"pushButton")
+        self.pushButton_cut = QPushButton(self.groupBox_5)
+        self.pushButton_cut.setObjectName(u"pushButton_cut")
 
-        self.gridLayout_6.addWidget(self.pushButton, 2, 0, 1, 1)
+        self.gridLayout_6.addWidget(self.pushButton_cut, 2, 0, 1, 1)
 
 
         self.gridLayout.addWidget(self.groupBox_5, 2, 1, 1, 1)
@@ -350,7 +350,7 @@ class Ui_MainWindow(object):
         self.label_16.setText(QCoreApplication.translate("MainWindow", u"Y:", None))
         self.label_23.setText(QCoreApplication.translate("MainWindow", u"\u041f\u0440\u0430\u0432\u0430\u044f \u043d\u0438\u0436\u043d\u044f\u044f \u0442\u043e\u0447\u043a\u0430:", None))
         self.pushButton_box_add.setText(QCoreApplication.translate("MainWindow", u"+", None))
-        self.pushButton.setText(QCoreApplication.translate("MainWindow", u"\u041e\u0442\u0441\u0435\u0447\u044c", None))
+        self.pushButton_cut.setText(QCoreApplication.translate("MainWindow", u"\u041e\u0442\u0441\u0435\u0447\u044c", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0446\u0432\u0435\u0442\u0430", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"\u0426\u0432\u0435\u0442 \u043e\u0442\u0441\u0435\u0447\u0435\u043d\u0438\u044f:", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"\u0426\u0432\u0435\u0442 \u043e\u0442\u0440\u0435\u0437\u043a\u043e\u0432:", None))
