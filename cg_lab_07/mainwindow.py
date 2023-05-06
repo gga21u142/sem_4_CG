@@ -3,10 +3,10 @@ import sys
 import time
 import copy
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QGraphicsScene, QColormap, QColorDialog, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QGraphicsScene, QColormap, QColorDialog, QLabel, QTableWidgetItem, QGraphicsView, QGraphicsLineItem
 from PySide6 import QtCore, QtGui
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPixmap, QPainter, QBrush, QWheelEvent
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QColor, QPixmap, QPainter, QBrush, QWheelEvent, QPen
 # Important:
 # You need to run the following command to generate the ui_form.py file
 #     pyside6-uic form.ui -o ui_form.py, or
@@ -22,26 +22,32 @@ class MainWindow(QMainWindow):
         self.action_log = list()
         self.log_size = 10
 
+        self.task_lines = list()
+        self.task_cutter = list()
+
         self.canvas_init()
         self.color_bg = (255, 255, 255, 255)
-        self.color_rib = (170, 0, 0, 255)
-        self.color_fill =  (0, 170, 0, 255)
+        self.color_line = (0, 0, 0, 255)
+        self.color_cutted =  (0, 170, 0, 255)
         self.ui.graphicsView.wheelEvent = self.wheelEvent
+
 
 
         #Обработка нажатия кнопок и ивентов
         self.ui.about_author.triggered.connect(self.info_author)
         self.ui.about_programm.triggered.connect(self.info_task)
 
+        self.ui.graphicsView.mousePressEvent = self.MB_click
+        self.ui.graphicsView.mouseReleaseEvent = self.MB_release
+
         self.ui.pushButton_clear.clicked.connect(self.clean_button)
         self.ui.pushButton_undo.clicked.connect(self.log_undo)
-        self.ui.graphicsView.mousePressEvent = self.LMB_event
         self.ui.pushButton_color_bg.clicked.connect(self.color_bg_change)
-        self.ui.pushButton_color_rib.clicked.connect(self.color_rib_change)
-        self.ui.pushButton_color_fill.clicked.connect(self.color_fill_change)
+        self.ui.pushButton_color_line.clicked.connect(self.color_line_change)
+        self.ui.pushButton_color_cutted.clicked.connect(self.color_cutted_change)
 
-#        self.ui.pushButton_dot_add.clicked.connect(self.point_add_button)
-#        self.ui.pushButton_fill.clicked.connect(self.fill_figure_point)
+        self.ui.pushButton_line_add.clicked.connect(self.line_add_button)
+        self.ui.pushButton_box_add.clicked.connect(self.cutter_add_button)
 
     # Служебные функции
 
@@ -93,7 +99,6 @@ class MainWindow(QMainWindow):
 
     def canvas_init(self):
         self.scale = 1
-        self.table_add_point(('-----', '-----'))
 
         self.scene = QGraphicsScene(self)
         self.ui.graphicsView.setScene(self.scene)
@@ -104,17 +109,19 @@ class MainWindow(QMainWindow):
         self.scene.addPixmap(self.pixmap)
 
         self.canvas_size = (2500, 2500)
-        self.view_size = (self.ui.graphicsView.width(), self.ui.graphicsView.height())
         self.canvas_center = (self.canvas_size[0] // 2, self.canvas_size[1] // 2)
+        self.view_size = (self.ui.graphicsView.width(), self.ui.graphicsView.height())
+        self.log_update()
 
 
     def canvas_scrollbar_reset(self):
+        self.view_size = (self.ui.graphicsView.width(), self.ui.graphicsView.height())
         self.ui.graphicsView.horizontalScrollBar().setValue(self.canvas_center[0] - (self.view_size[0] // 2))
         self.ui.graphicsView.verticalScrollBar().setValue(self.canvas_center[1] - (self.view_size[1] // 2))
 
 
     def showEvent(self, event):
-        self.canvas_clean()
+        self.canvas_scrollbar_reset()
 
 
     def wheelEvent(self, event: QWheelEvent):
@@ -135,10 +142,12 @@ class MainWindow(QMainWindow):
 
 
     def log_update(self):
-        pixmap_copy = self.pixmap.copy()
-        self.action_log.append(pixmap_copy.copy())
+        lines_copy = self.task_lines.copy()
+        cutter_copy = self.task_cutter.copy()
+        self.action_log.append([lines_copy, cutter_copy])
         if len(self.action_log) > self.log_size:
             self.action_log.pop(0)
+
 
 
     def log_undo(self):
@@ -146,22 +155,44 @@ class MainWindow(QMainWindow):
             self.show_warning("Невозможно отменить последнее действие")
         else:
             self.action_log.pop()
-            self.pixmap = self.action_log[(len(self.action_log) - 1)][0]
-            self.points = self.action_log[(len(self.action_log) - 1)][1]
+            self.task_lines = self.action_log[(len(self.action_log) - 1)][0].copy()
+            self.task_cutter = self.action_log[(len(self.action_log) - 1)][1].copy()
 
-            self.ui.tableWidget_ribs.setRowCount(2)
-            self.ui.tableWidget_ribs.setCellWidget(0, 0, QLabel(str(self.points.fill_point[0])))
-            self.ui.tableWidget_ribs.setCellWidget(0, 1, QLabel(str(self.points.fill_point[1])))
+            self.canvas_clean()
+            self.ui.tableWidget_lines.setRowCount(0)
+            for line in self.task_lines:
+                print(line[0], line[1])
+                self.line_add(line[0], line[1])
+            if len(self.task_cutter) != 0:
+                self.cutter_add(self.task_cutter[0], self.task_cutter[1])
 
-            self.scene.clear()
-            self.scene.addPixmap(self.pixmap)
+            self.canvas_update()
             self.ui.graphicsView.show()
 
-    def table_add_point(self, point):
-        rowPosition = self.ui.tableWidget_ribs.rowCount()
-        self.ui.tableWidget_ribs.insertRow(rowPosition)
-        self.ui.tableWidget_ribs.setCellWidget(rowPosition, 0, QLabel(str(point[0])))
-        self.ui.tableWidget_ribs.setCellWidget(rowPosition, 1, QLabel(str(point[1])))
+    def line_add(self, point_1, point_2):
+        self.line_draw(point_1, point_2)
+        rowPosition = self.ui.tableWidget_lines.rowCount()
+        self.ui.tableWidget_lines.insertRow(rowPosition)
+        self.ui.tableWidget_lines.setItem(rowPosition, 0, QTableWidgetItem(str((round(point_1[0], 2), round(point_1[1], 2)))))
+        self.ui.tableWidget_lines.setItem(rowPosition, 1, QTableWidgetItem(str((round(point_2[0], 2), round(point_2[1], 2)))))
+        if (point_1, point_2) not in self.task_lines:
+            self.task_lines.append((point_1, point_2))
+
+    def cutter_add(self, point_1, point_2):
+        rect = [point_1, (point_2[0], point_1[1]), point_2, (point_1[0], point_2[1])]
+        for i in range(4):
+            if rect[i][0] < point_1[0] or (rect[i][0] == point_1[0] and rect[i][1] > point_1[1]):
+                point_1 = rect[i]
+
+            if rect[i][0] > point_2[0] or (rect[i][0] == point_2[0] and rect[i][1] < point_2[1]):
+                point_2 = rect[i]
+
+        self.rect_draw(point_1, point_2)
+        self.ui.doubleSpinBox_box_x_b.setValue(point_1[0])
+        self.ui.doubleSpinBox_box_y_b.setValue(point_1[1])
+        self.ui.doubleSpinBox_box_x_e.setValue(point_2[0])
+        self.ui.doubleSpinBox_box_y_e.setValue(point_2[1])
+        self.task_cutter = [point_1, point_2]
 
     def figure_inside_warning(self):
         msg = QMessageBox(self)
@@ -183,8 +214,12 @@ class MainWindow(QMainWindow):
 
     def clean_button(self):
         self.canvas_clean()
-        self.points.clear()
-        self.ui.tableWidget_ribs.setRowCount(0)
+        self.ui.graphicsView.resetTransform()
+        self.canvas_scrollbar_reset()
+        self.ui.tableWidget_lines.setRowCount(0)
+        self.task_lines.clear()
+        self.task_cutter.clear()
+        self.log_update()
 
     def canvas_clean(self):
         self.scale = 1
@@ -195,22 +230,13 @@ class MainWindow(QMainWindow):
 
         self.scene.clear()
 
-        self.pixmap = QPixmap(2500, 2500)
-        self.pixmap.fill(Qt.transparent)
-
         self.scene.addPixmap(self.pixmap)
         self.color_bg = (255, 255, 255, 255)
         self.ui.pushButton_color_bg.setStyleSheet('background-color: rgba(255, 255, 255, 255)')
         brush = QBrush(QColor(self.color_bg[0], self.color_bg[1], self.color_bg[2], self.color_bg[3]))
         self.ui.graphicsView.setBackgroundBrush(brush)
 
-        self.ui.graphicsView.resetTransform()
-        self.canvas_scrollbar_reset()
-        self.log_update()
-
-    def update_scene(self):
-        self.scene.clear()
-        self.scene.addPixmap(self.pixmap)
+    def canvas_update(self):
         self.scene.update()
 
     def color_bg_change(self):
@@ -227,94 +253,89 @@ class MainWindow(QMainWindow):
             self.ui.graphicsView.setBackgroundBrush(brush)
 
 
-    def color_rib_change(self):
+    def color_line_change(self):
         color = QColorDialog.getColor()
 
         if color.isValid():
-            self.color_rib = color.getRgb()
-            print("RIB color changed on rgba" + str(self.color_rib))
+            self.color_line = color.getRgb()
+            print("LINE color changed on rgba" + str(self.color_line))
 
-            color_str = 'background-color: rgba' + str(self.color_rib)
-            self.ui.pushButton_color_rib.setStyleSheet(color_str)
+            color_str = 'background-color: rgba' + str(self.color_line)
+            self.ui.pushButton_color_line.setStyleSheet(color_str)
 
-    def color_fill_change(self):
+    def color_cutted_change(self):
         color = QColorDialog.getColor()
 
         if color.isValid():
-            self.color_fill = color.getRgb()
-            print("FILL color changed on rgba" + str(self.color_fill))
+            self.color_cutted = color.getRgb()
+            print("CUTTED color changed on rgba" + str(self.color_cutted))
 
-            color_str = 'background-color: rgba' + str(self.color_fill)
-            self.ui.pushButton_color_fill.setStyleSheet(color_str)
+            color_str = 'background-color: rgba' + str(self.color_cutted)
+            self.ui.pushButton_color_cutted.setStyleSheet(color_str)
 
     # Функции отрисовки
 
-    def draw_point(self, point, color, log = True):
-        painter = QPainter(self.pixmap)
-        painter.setPen(QColor(color[0], color[1], color[2], color[3]))
-        painter.drawPoint(point[0] + self.canvas_center[0], -point[1] + self.canvas_center[1])
-        painter.end()
-        if log:
-            self.log_update()
+    def canvas_redraw(self):
+        self.canvas_clean()
+        for line in self.task_lines:
+            self.line_draw(line[0], line[1])
+        if len(self.task_cutter) != 0:
+            self.cutter_add(self.task_cutter[0], self.task_cutter[1])
+        self.canvas_update()
 
-    def draw_line(self, point_b, point_e, log = True):
-        painter = QPainter(self.pixmap)
-        painter.setPen(QColor(QColor(self.color_rib[0], self.color_rib[1], self.color_rib[2], self.color_rib[3])))
-        painter.drawLine(point_b[0] + self.canvas_center[0], -point_b[1] + self.canvas_center[1], point_e[0] + self.canvas_center[0], -point_e[1] + self.canvas_center[1])
-        painter.end()
-        if log:
-            self.log_update()
+    def line_draw(self, point_b, point_e, color = "default"):
+        if color == "default":
+            pen = QPen(QColor(self.color_line[0], self.color_line[1], self.color_line[2], self.color_line[3]))
+        else:
+            pen = QPen(QColor(color[0], color[1], color[2], color[3]))
 
+        self.scene.addLine(point_b[0] + self.canvas_center[0], -point_b[1] + self.canvas_center[1], point_e[0] + self.canvas_center[0], -point_e[1] + self.canvas_center[1], pen)
 
-        x, y = point
+    def rect_draw(self, point_b, point_e):
+        rect = [point_b, (point_e[0], point_b[1]), point_e, (point_b[0], point_e[1])]
+        for i in range(4):
+            self.line_draw(rect[i], rect[(i + 1) % 4], (170, 0, 0, 255))
 
-        # Проходимся по каждой стороне фигуры
-        for figure in self.points.figures:
-            intersections = 0
-
-            for i in range(len(figure)):
-                # Получаем координаты текущей и следующей точек стороны
-                current_point = figure[i]
-                next_point = figure[(i + 1) % len(figure)]
-
-                # Проверяем, находится ли точка выше, ниже или на одном уровне со стороной
-                if (current_point[1] <= y and next_point[1] > y) or \
-                   (current_point[1] > y and next_point[1] <= y):
-
-                    # Вычисляем координату x пересечения луча и стороны
-                    intersect = (next_point[0] - current_point[0]) * (y - current_point[1]) / \
-                                (next_point[1] - current_point[1]) + current_point[0]
-
-                    # Увеличиваем количество пересечений, если точка пересекает сторону
-                    if intersect > x:
-                        intersections += 1
-
-            if intersections % 2 != 0:
-                return True
-
-        # Если количество пересечений нечетное, то точка внутри фигуры
-        return False
-
-
-    def LMB_event(self, event):
+    def MB_click(self, event):
         if event.button() == Qt.LeftButton:
             position = self.ui.graphicsView.mapToScene(event.pos())
-            click_point = (round(position.x() - (self.canvas_center[0])), round(-(position.y() - (self.canvas_center[1]))))
+            self.line_point_begin = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
+        elif event.button() == Qt.RightButton:
+            position = self.ui.graphicsView.mapToScene(event.pos())
+            self.cutter_point_begin = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
+        self.canvas_update()
 
-            self.table_add_point(click_point)
-            self.draw_line(self.points.points[-2], click_point)
-            self.update_scene()
+    def MB_release(self, event):
+        if event.button() == Qt.LeftButton:
+            position = self.ui.graphicsView.mapToScene(event.pos())
+            self.line_point_end = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
+            self.line_add(self.line_point_begin, self.line_point_end)
+            self.canvas_update()
+            self.log_update()
+        elif event.button() == Qt.RightButton:
+            position = self.ui.graphicsView.mapToScene(event.pos())
+            self.cutter_point_end = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
+            self.cutter_add(self.cutter_point_begin, self.cutter_point_end)
+            self.canvas_redraw()
+            self.log_update()
 
-    def point_add_button(self):
-        click_point = (self.ui.spinBox_add_x.value(), self.ui.spinBox_add_y.value())
 
-        self.table_add_point(click_point)
-        self.draw_line(self.points.points[-2], click_point)
-        self.update_scene()
 
-    # Функции заливки
 
-    def pixel_color_get(self, point):
-        return self.pixmap.toImage().pixelColor(point[0] + self.canvas_center[0], -point[1] + self.canvas_center[1]).getRgb()
+    def line_add_button(self):
+        point_1 = (self.ui.doubleSpinBox_line_x_b.value(), self.ui.doubleSpinBox_line_y_b.value())
+        point_2 = (self.ui.doubleSpinBox_line_x_e.value(), self.ui.doubleSpinBox_line_y_e.value())
+
+        self.task_lines.append((point_1, point_2))
+        self.line_add(point_1, point_2)
+        self.canvas_update()
+        self.log_update()
+
+    def cutter_add_button(self):
+        point_1 = (self.ui.doubleSpinBox_box_x_b.value(), self.ui.doubleSpinBox_box_y_b.value())
+        point_2 = (self.ui.doubleSpinBox_box_x_e.value(), self.ui.doubleSpinBox_box_y_e.value())
+        self.cutter_add(point_1, point_2)
+        self.canvas_redraw()
+        self.log_update()
 
 
