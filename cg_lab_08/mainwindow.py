@@ -2,6 +2,7 @@
 import sys
 import time
 import copy
+import math
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QGraphicsScene, QColormap, QColorDialog, QLabel, QTableWidgetItem, QGraphicsView, QGraphicsLineItem
 from PySide6 import QtCore, QtGui
@@ -29,6 +30,7 @@ class MainWindow(QMainWindow):
         self.color_bg = (255, 255, 255, 255)
         self.color_line = (0, 0, 0, 255)
         self.color_cutted =  (0, 170, 0, 255)
+        self.color_cutter = (170, 0, 0, 255)
         self.ui.graphicsView.wheelEvent = self.wheelEvent
 
 
@@ -47,7 +49,8 @@ class MainWindow(QMainWindow):
         self.ui.pushButton_color_cutted.clicked.connect(self.color_cutted_change)
 
         self.ui.pushButton_line_add.clicked.connect(self.line_add_button)
-        self.ui.pushButton_box_add.clicked.connect(self.cutter_add_button)
+        self.ui.pushButton_box_add.clicked.connect(self.cutter_point_add_button)
+        self.ui.pushButton_cutter_connect.clicked.connect(self.cutter_connect)
         self.ui.pushButton_cut.clicked.connect(self.cut_lines)
 
     # Служебные функции
@@ -155,15 +158,18 @@ class MainWindow(QMainWindow):
             self.show_warning("Невозможно отменить последнее действие")
         else:
             self.action_log.pop()
-            self.task_lines = self.action_log[(len(self.action_log) - 1)][0].copy()
-            self.task_cutter = self.action_log[(len(self.action_log) - 1)][1].copy()
+            self.task_lines.clear()
+            self.task_cutter.clear()
+            task_lines = self.action_log[(len(self.action_log) - 1)][0].copy()
+            task_cutter = self.action_log[(len(self.action_log) - 1)][1].copy()
 
             self.canvas_clean()
             self.ui.tableWidget_lines.setRowCount(0)
-            for line in self.task_lines:
+            self.ui.tableWidget_cutter.setRowCount(0)
+            for line in task_lines:
                 self.line_add(line[0], line[1])
-            if len(self.task_cutter) != 0:
-                self.cutter_add(self.task_cutter[0], self.task_cutter[1])
+            for point in task_cutter:
+                self.cutter_point_add(point)
 
             self.canvas_update()
             self.ui.graphicsView.show()
@@ -176,6 +182,7 @@ class MainWindow(QMainWindow):
         self.ui.graphicsView.resetTransform()
         self.canvas_scrollbar_reset()
         self.ui.tableWidget_lines.setRowCount(0)
+        self.ui.tableWidget_cutter.setRowCount(0)
         self.task_lines.clear()
         self.task_cutter.clear()
         self.log_update()
@@ -239,8 +246,10 @@ class MainWindow(QMainWindow):
             self.line_point_begin = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
         elif event.button() == Qt.RightButton:
             position = self.ui.graphicsView.mapToScene(event.pos())
-            self.cutter_point_begin = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
-        self.canvas_update()
+            cutter_point = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
+            if self.cutter_point_add(cutter_point) == 0:
+                self.log_update()
+
 
 
     def MB_release(self, event):
@@ -249,12 +258,6 @@ class MainWindow(QMainWindow):
             self.line_point_end = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
             self.line_add(self.line_point_begin, self.line_point_end)
             self.canvas_update()
-            self.log_update()
-        elif event.button() == Qt.RightButton:
-            position = self.ui.graphicsView.mapToScene(event.pos())
-            self.cutter_point_end = (position.x() - self.canvas_center[0], -position.y() + self.canvas_center[1])
-            self.cutter_add(self.cutter_point_begin, self.cutter_point_end)
-            self.canvas_redraw()
             self.log_update()
 
 
@@ -267,12 +270,22 @@ class MainWindow(QMainWindow):
         self.canvas_update()
         self.log_update()
 
-    def cutter_add_button(self):
+    def cutter_point_add_button(self):
         point_1 = (self.ui.doubleSpinBox_box_x_b.value(), self.ui.doubleSpinBox_box_y_b.value())
-        point_2 = (self.ui.doubleSpinBox_box_x_e.value(), self.ui.doubleSpinBox_box_y_e.value())
-        self.cutter_add(point_1, point_2)
-        self.canvas_redraw()
-        self.log_update()
+        if self.cutter_point_add(point_1) == 0:
+            self.log_update()
+
+    def cutter_connect(self):
+        if len(self.task_cutter) < 3:
+            self.show_warning("Задано менее трех точек, невозможно замкнуть отсекатель.")
+            return
+
+        if self.task_cutter[0] == self.task_cutter[-1]:
+            self.show_warning("Текущий отсекатель уже замкнут.")
+            return
+
+        self.line_draw(self.task_cutter[0], self.task_cutter[-1], self.color_cutter)
+        self.task_cutter.append(self.task_cutter[0])
 
     # Функции отрисовки
 
@@ -286,30 +299,33 @@ class MainWindow(QMainWindow):
             self.task_lines.append((point_1, point_2))
 
 
-    def cutter_add(self, point_1, point_2):
-        rect = [point_1, (point_2[0], point_1[1]), point_2, (point_1[0], point_2[1])]
-        for i in range(4):
-            if rect[i][0] < point_1[0] or (rect[i][0] == point_1[0] and rect[i][1] > point_1[1]):
-                point_1 = rect[i]
+    def cutter_point_add(self, point_1):
+        if len(self.task_cutter) > 1 and self.task_cutter[0] == self.task_cutter[-1]:
+            self.task_cutter.clear()
+            self.ui.tableWidget_cutter.setRowCount(0)
+            self.canvas_redraw()
+            self.canvas_update()
 
-            if rect[i][0] > point_2[0] or (rect[i][0] == point_2[0] and rect[i][1] < point_2[1]):
-                point_2 = rect[i]
+        if len(self.task_cutter) == 0 or point_1 != self.task_cutter[-1]:
+            if len(self.task_cutter) > 0:
+                self.line_draw(point_1, self.task_cutter[-1], self.color_cutter)
+            self.task_cutter.append(point_1)
+            rowPosition = self.ui.tableWidget_cutter.rowCount()
+            self.ui.tableWidget_cutter.insertRow(rowPosition)
+            self.ui.tableWidget_cutter.setItem(rowPosition, 0, QTableWidgetItem(str((round(point_1[0], 2)))))
+            self.ui.tableWidget_cutter.setItem(rowPosition, 1, QTableWidgetItem(str((round(point_1[1], 2)))))
+            self.canvas_update()
+            return 0
 
-        self.rect_draw(point_1, point_2)
-        self.ui.doubleSpinBox_box_x_b.setValue(point_1[0])
-        self.ui.doubleSpinBox_box_y_b.setValue(point_1[1])
-        self.ui.doubleSpinBox_box_x_e.setValue(point_2[0])
-        self.ui.doubleSpinBox_box_y_e.setValue(point_2[1])
-        self.task_cutter = [point_1, point_2]
+        return 1
 
 
     def canvas_redraw(self):
         self.canvas_clean()
         for line in self.task_lines:
             self.line_draw(line[0], line[1])
-        if len(self.task_cutter) != 0:
-            self.cutter_add(self.task_cutter[0], self.task_cutter[1])
-        self.canvas_update()
+
+
 
     def line_draw(self, point_b, point_e, color = "default"):
         if color == "default":
@@ -319,13 +335,37 @@ class MainWindow(QMainWindow):
 
         self.scene.addLine(point_b[0] + self.canvas_center[0], -point_b[1] + self.canvas_center[1], point_e[0] + self.canvas_center[0], -point_e[1] + self.canvas_center[1], pen)
 
-    def rect_draw(self, point_b, point_e):
-        rect = [point_b, (point_e[0], point_b[1]), point_e, (point_b[0], point_e[1])]
-        for i in range(4):
-            self.line_draw(rect[i], rect[(i + 1) % 4], (170, 0, 0, 255))
+    def is_cutter_convex(self):
+        n = len(self.task_cutter[:-1])
+        if n < 3:
+            return False
 
+        for i in range(n - 1):
+            point_1 = self.task_cutter[i]
+            point_2 = self.task_cutter[i + 1]
+            side = None
+            for j in range(n):
+                if j != i and j != i + 1:
+                    point = self.task_cutter[j]
+                    det = (point_2[0] - point_1[0]) * (point[1] - point_1[1]) - (point_2[1] - point_1[1]) * (point[0] - point_1[0])
+
+                    cur_side = -1 if det >= 0 else 1
+
+                    if side == None or side == 0:
+                        side = cur_side
+                    elif side != cur_side:
+                        return False
+        return True
 
     # Функции отсечения
+
+    def cut_lines(self):
+        if len(self.task_cutter) == 0 or self.task_cutter[0] != self.task_cutter[-1]:
+            self.show_warning("Отсекатель не задан или не замкнут.")
+            return
+        if not self.is_cutter_convex():
+            self.show_warning("Отсекатель имеет форму невыпуклого многоугольника. Задайте корректный отсекатель.")
+            return
 
 
 

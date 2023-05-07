@@ -220,16 +220,16 @@ class Ui_MainWindow(object):
 
         self.gridLayout_6.addWidget(self.groupBox_6, 1, 0, 1, 2)
 
-        self.tableWidget = QTableWidget(self.groupBox_5)
-        if (self.tableWidget.columnCount() < 2):
-            self.tableWidget.setColumnCount(2)
+        self.tableWidget_cutter = QTableWidget(self.groupBox_5)
+        if (self.tableWidget_cutter.columnCount() < 2):
+            self.tableWidget_cutter.setColumnCount(2)
         __qtablewidgetitem2 = QTableWidgetItem()
-        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem2)
+        self.tableWidget_cutter.setHorizontalHeaderItem(0, __qtablewidgetitem2)
         __qtablewidgetitem3 = QTableWidgetItem()
-        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem3)
-        self.tableWidget.setObjectName(u"tableWidget")
+        self.tableWidget_cutter.setHorizontalHeaderItem(1, __qtablewidgetitem3)
+        self.tableWidget_cutter.setObjectName(u"tableWidget_cutter")
 
-        self.gridLayout_6.addWidget(self.tableWidget, 2, 0, 1, 2)
+        self.gridLayout_6.addWidget(self.tableWidget_cutter, 2, 0, 1, 2)
 
 
         self.gridLayout.addWidget(self.groupBox_5, 2, 1, 1, 1)
@@ -283,7 +283,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
         self.menubar.setObjectName(u"menubar")
-        self.menubar.setGeometry(QRect(0, 0, 1173, 25))
+        self.menubar.setGeometry(QRect(0, 0, 1173, 21))
         self.menu = QMenu(self.menubar)
         self.menu.setObjectName(u"menu")
         MainWindow.setMenuBar(self.menubar)
@@ -326,9 +326,9 @@ class Ui_MainWindow(object):
         self.label_21.setText(QCoreApplication.translate("MainWindow", u"X:", None))
         self.pushButton_box_add.setText(QCoreApplication.translate("MainWindow", u"+", None))
         self.label_16.setText(QCoreApplication.translate("MainWindow", u"Y:", None))
-        ___qtablewidgetitem2 = self.tableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem2 = self.tableWidget_cutter.horizontalHeaderItem(0)
         ___qtablewidgetitem2.setText(QCoreApplication.translate("MainWindow", u"X", None));
-        ___qtablewidgetitem3 = self.tableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem3 = self.tableWidget_cutter.horizontalHeaderItem(1)
         ___qtablewidgetitem3.setText(QCoreApplication.translate("MainWindow", u"Y", None));
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0446\u0432\u0435\u0442\u0430", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"\u0426\u0432\u0435\u0442 \u043e\u0442\u0441\u0435\u0447\u0435\u043d\u0438\u044f:", None))

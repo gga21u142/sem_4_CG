@@ -343,7 +343,7 @@
         </widget>
        </item>
        <item row="2" column="0" colspan="2">
-        <widget class="QTableWidget" name="tableWidget">
+        <widget class="QTableWidget" name="tableWidget_cutter">
          <column>
           <property name="text">
            <string>X</string>
@@ -436,7 +436,7 @@
      <x>0</x>
      <y>0</y>
      <width>1173</width>
-     <height>25</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu">
