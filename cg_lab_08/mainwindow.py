@@ -366,8 +366,73 @@ class MainWindow(QMainWindow):
         if not self.is_cutter_convex():
             self.show_warning("Отсекатель имеет форму невыпуклого многоугольника. Задайте корректный отсекатель.")
             return
+        self.task_cutter.pop()
+        for line in self.task_lines:
+            point_1, point_2 = self.cyrus_beck(line)
+            if point_1 != None:
+                self.line_draw(point_1, point_2, self.color_cutted)
+        self.task_cutter.append(self.task_cutter[0])
+        self.canvas_update()
 
 
+    def calc_vector_scalar(self, vect_1, vect_2):
+        return vect_1[0] * vect_2[0] + vect_1[1] * vect_2[1]
 
 
+    def find_internal_normal(self, dot1, dot2, pos):
+        direct_vect = [dot2[0] - dot1[0], dot2[1] - dot1[1]]
+        check_vect = [pos[0] - dot2[0], pos[1] - dot2[1]]
 
+        if direct_vect[1] != 0:
+            tan = -direct_vect[0] / direct_vect[1]
+            normal = [1, tan]
+        else:
+            normal = [0, 1]
+
+        if (self.calc_vector_scalar(check_vect, normal) < 0):
+            return [-normal[0], -normal[1]]
+
+        return normal
+
+
+    def cyrus_beck(self, line):
+        direct_vect = [line[1][0] - line[0][0], line[1][1] - line[0][1]]
+
+        t_bot = 0
+        t_top = 1
+
+        for i in range(-2, len(self.task_cutter) - 2):
+
+            normal = self.find_internal_normal(self.task_cutter[i], self.task_cutter[i + 1], self.task_cutter[i + 2])
+            line_p_vect = [line[0][0] - self.task_cutter[i][0], line[0][1] - self.task_cutter[i][1]]
+
+            denominator = self.calc_vector_scalar(direct_vect, normal)
+            numerator = self.calc_vector_scalar(line_p_vect, normal)
+
+            if denominator == 0:
+                if numerator <= 0:
+                    return None, None
+                else:
+                    continue
+
+            t = - numerator / denominator
+
+            if denominator > 0:
+                if t <= 1:
+                    t_bot = max(t_bot, t)
+                else:
+                    return None, None
+            elif denominator < 0:
+                if t >= 0:
+                    t_top = min(t_top, t)
+                else:
+                    return None, None
+
+            if t_bot > t_top:
+                break
+
+
+        point_1 = [line[0][0] + direct_vect[0] * t_bot, line[0][1] + direct_vect[1] * t_bot]
+        point_2 = [line[0][0] + direct_vect[0] * t_top, line[0][1] + direct_vect[1] * t_top]
+
+        return point_1, point_2
