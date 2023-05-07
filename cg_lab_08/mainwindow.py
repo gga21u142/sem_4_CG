@@ -384,7 +384,7 @@ class MainWindow(QMainWindow):
         check_vect = [pos[0] - dot2[0], pos[1] - dot2[1]]
 
         if direct_vect[1] != 0:
-            tan = -direct_vect[0] / direct_vect[1]
+            tan = - direct_vect[0] / direct_vect[1]
             normal = [1, tan]
         else:
             normal = [0, 1]
@@ -401,9 +401,10 @@ class MainWindow(QMainWindow):
         t_bot = 0
         t_top = 1
 
-        for i in range(-2, len(self.task_cutter) - 2):
+        leng = len(self.task_cutter)
+        for i in range(leng):
 
-            normal = self.find_internal_normal(self.task_cutter[i], self.task_cutter[i + 1], self.task_cutter[i + 2])
+            normal = self.find_internal_normal(self.task_cutter[i], self.task_cutter[(i + 1) % leng], self.task_cutter[(i + 2) % leng])
             line_p_vect = [line[0][0] - self.task_cutter[i][0], line[0][1] - self.task_cutter[i][1]]
 
             denominator = self.calc_vector_scalar(direct_vect, normal)
@@ -431,8 +432,10 @@ class MainWindow(QMainWindow):
             if t_bot > t_top:
                 break
 
+        if t_bot <= t_top:
+            point_1 = [line[0][0] + direct_vect[0] * t_bot, line[0][1] + direct_vect[1] * t_bot]
+            point_2 = [line[0][0] + direct_vect[0] * t_top, line[0][1] + direct_vect[1] * t_top]
 
-        point_1 = [line[0][0] + direct_vect[0] * t_bot, line[0][1] + direct_vect[1] * t_bot]
-        point_2 = [line[0][0] + direct_vect[0] * t_top, line[0][1] + direct_vect[1] * t_top]
+            return point_1, point_2
 
-        return point_1, point_2
+        return None, None
